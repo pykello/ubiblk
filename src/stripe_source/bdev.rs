@@ -49,4 +49,8 @@ impl StripeSource for BlockDeviceStripeSource {
     fn busy(&self) -> bool {
         self.channel.busy()
     }
+
+    fn sector_count(&self) -> u64 {
+        self.source_sector_count
+    }
 }
