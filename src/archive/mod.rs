@@ -7,11 +7,38 @@ use serde::{Deserialize, Serialize};
 /// Abstraction over a backend that can store and retrieve archived objects.
 pub trait ArchiveStore {
     /// Store an object under the given `name`.
-    fn put_object(&mut self, name: &str, data: &[u8]) -> Result<()>;
+    fn start_put_object(&mut self, name: &str, data: &[u8]);
     /// Retrieve an object by its `name`.
-    fn get_object(&self, name: &str) -> Result<Vec<u8>>;
+    fn start_get_object(&mut self, name: &str);
+    /// Poll for completed put operations.
+    fn poll_puts(&mut self) -> Vec<(String, Result<()>)>;
+    fn poll_gets(&mut self) -> Vec<(String, Result<Vec<u8>>)>;
     /// List all stored object names.
     fn list_objects(&self) -> Result<Vec<String>>;
+
+    fn put_object(&mut self, name: &str, data: &[u8]) -> Result<()> {
+        self.start_put_object(name, data);
+        loop {
+            let results = self.poll_puts();
+            for (obj_name, result) in results {
+                if obj_name == name {
+                    return result;
+                }
+            }
+        }
+    }
+
+    fn get_object(&mut self, name: &str) -> Result<Vec<u8>> {
+        self.start_get_object(name);
+        loop {
+            let results = self.poll_gets();
+            for (obj_name, result) in results {
+                if obj_name == name {
+                    return result;
+                }
+            }
+        }
+    }
 }
 
 /// Representation of `metadata.yaml` stored alongside archived stripes.

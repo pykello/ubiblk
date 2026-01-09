@@ -122,7 +122,7 @@ impl StripeSourceBuilder {
                     client,
                     bucket.to_string(),
                     prefix.clone(),
-                    runtime,
+                    1,
                 )?))
             }
         }

@@ -143,7 +143,7 @@ fn build_store(args: &Args, kek: &KeyEncryptionCipher) -> Result<Box<dyn Archive
                 args.s3_region.as_deref(),
                 decrypted_credentials,
             )?;
-            Ok(Box::new(S3Store::new(client, bucket, prefix, runtime)?))
+            Ok(Box::new(S3Store::new(client, bucket, prefix, 1)?))
         }
     }
 }
