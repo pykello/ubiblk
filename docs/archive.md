@@ -116,6 +116,37 @@ source.env = "UBIBLK_ARCHIVE_KEK"
 | `archive_kek.ref` | string | no | — | Reference to a 32-byte AES-256-GCM KEK secret |
 | `autofetch` | boolean | no | false | Fetch stripes in the background |
 | `max_attempts` | integer | no | 3 | Max S3 operation attempts (initial attempt + retries) |
+| `rate_limited_retry` | table | no | disabled | Fixed jittered retry delay for rate-limited responses. See below. |
+
+#### `[target.rate_limited_retry]`
+
+By default, failed requests are retried (up to `max_attempts` total tries) with
+the AWS SDK's jittered exponential backoff: retry _n_ waits a random duration in
+`[0, min(1s · 2ⁿ, 20s))`, so the first retry can fire almost immediately. When
+the object store rate-limits rapid retries to the same key, that near-instant
+retry after a transient `5xx` can be rejected (some return `429`, which the SDK
+does not retry) and fail the whole archive.
+
+When `enabled`, a response with a transient status (`500`/`502`/`503`/`504`) or a
+throttling status (`429`) is instead retried after `min_delay_ms + rand[0,
+jitter_ms)`. A `min_delay_ms` of `1500`–`2000` keeps retries spaced out.
+
+```toml
+[target.rate_limited_retry]
+enabled      = true
+min_delay_ms = 1500
+jitter_ms    = 1500
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | false | Turn the fixed retry delay on |
+| `min_delay_ms` | integer | 0 | Floor: minimum delay before a retry (must be > 0 when enabled) |
+| `jitter_ms` | integer | 0 | Width of the random jitter added on top of `min_delay_ms` (0 = no jitter) |
+
+It applies to every S3 operation of the archive client (mostly PUTs); only
+responses with an HTTP status are delayed, so client-side timeouts use the SDK's
+normal backoff. The delay is flat, not exponential.
 
 ### `[secrets.*]` and `[danger_zone]`
 
